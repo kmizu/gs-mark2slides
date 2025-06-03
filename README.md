@@ -138,4 +138,4 @@ function hello() {
 
 ## ライセンス
 
-ISC
+[MIT](https://opensource.org/license/mit)
