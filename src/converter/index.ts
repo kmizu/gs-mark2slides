@@ -1,0 +1,1 @@
+export { MarpToGoogleSlidesMapper } from './mapping';

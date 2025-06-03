@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { 
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-light: #e0e7ff;
+      --secondary: #0ea5e9;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1e293b;
+      --gray-900: #0f172a;
+      --gray-800: #1e293b;
+      --gray-700: #334155;
+      --gray-600: #475569;
+      --gray-500: #64748b;
+      --gray-400: #94a3b8;
+      --gray-300: #cbd5e1;
+      --gray-200: #e2e8f0;
+      --gray-100: #f1f5f9;
+      --gray-50: #f8fafc;
+      --white: #ffffff;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(236, 72, 153, 0.2) 0%, transparent 50%);
+      animation: float 20s ease-in-out infinite;
+      z-index: -1;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(30px, -30px) rotate(120deg); }
+      66% { transform: translate(-20px, 20px) rotate(240deg); }
+    }
+    
+    /* Main container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: var(--white);
+    }
+    
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .logo-icon {
+      width: 60px;
+      height: 60px;
+      background: var(--white);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: var(--shadow-xl);
+    }
+    
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin: 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      margin-top: 0.5rem;
+    }
+    
+    /* Main layout */
+    .main-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+    }
+    
+    /* Toolbar */
+    .toolbar {
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .theme-selector {
+      padding: 0.5rem 1rem;
+      border: 2px solid var(--gray-300);
+      border-radius: 8px;
+      background: var(--white);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .theme-selector:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .example-button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--gray-800);
+      color: var(--white);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .example-button:hover {
+      background: var(--gray-900);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+    
+    /* Editor layout */
+    .editor-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 600px;
+    }
+    
+    .editor-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .editor-panel:first-child {
+      border-right: 1px solid var(--gray-200);
+    }
+    
+    .panel-header {
+      padding: 1rem 1.5rem;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      font-weight: 600;
+      color: var(--gray-700);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #editor {
+      flex: 1;
+      width: 100%;
+      padding: 1.5rem;
+      border: none;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--gray-900);
+      resize: none;
+      outline: none;
+    }
+    
+    #editor::placeholder {
+      color: var(--gray-400);
+    }
+    
+    #preview {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      background: var(--gray-50);
+    }
+    
+    /* Preview slides */
+    .preview-slide {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .preview-slide:hover {
+      box-shadow: var(--shadow);
+      transform: translateY(-2px);
+    }
+    
+    .slide-number {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+    }
+    
+    /* Theme variations */
+    .preview-slide.theme-dark {
+      background: var(--gray-900);
+      color: var(--gray-100);
+      border-color: var(--gray-700);
+    }
+    
+    .preview-slide.theme-dark .slide-number {
+      background: var(--gray-800);
+      color: var(--gray-400);
+    }
+    
+    .preview-slide.theme-light {
+      background: var(--gray-50);
+      color: var(--gray-700);
+    }
+    
+    /* Typography in preview */
+    .preview-slide h1, .preview-slide h2, .preview-slide h3,
+    .preview-slide h4, .preview-slide h5, .preview-slide h6 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    
+    .preview-slide h1 { font-size: 2rem; }
+    .preview-slide h2 { font-size: 1.5rem; }
+    .preview-slide h3 { font-size: 1.25rem; }
+    
+    .preview-slide p {
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    
+    .preview-slide pre {
+      background: var(--gray-900);
+      color: var(--gray-100);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+    
+    .preview-slide code {
+      background: var(--gray-100);
+      padding: 0.125rem 0.375rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875em;
+    }
+    
+    .preview-slide pre code {
+      background: transparent;
+      padding: 0;
+    }
+    
+    /* Action area */
+    .action-area {
+      background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+      padding: 2rem;
+      text-align: center;
+      border-top: 1px solid var(--gray-200);
+    }
+    
+    .convert-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: var(--white);
+      font-family: inherit;
+      font-size: 1.125rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .convert-button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .convert-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+    
+    .convert-button:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+    
+    .convert-button:disabled {
+      background: var(--gray-400);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+    
+    .convert-button-icon {
+      font-size: 1.5rem;
+    }
+    
+    /* Status messages */
+    .status {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border-radius: 12px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .status.error {
+      background: var(--danger);
+      color: var(--white);
+    }
+    
+    .status.success {
+      background: var(--success);
+      color: var(--white);
+    }
+    
+    .status h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    
+    .status p {
+      margin: 0.25rem 0;
+    }
+    
+    .status a {
+      color: var(--white);
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    
+    .status a:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateX(4px);
+    }
+    
+    /* Loading spinner */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Syntax highlighting */
+    .token-keyword { color: #c678dd; font-weight: 500; }
+    .token-string { color: #98c379; }
+    .token-number { color: #d19a66; }
+    .token-comment { color: #5c6370; font-style: italic; }
+    .token-function { color: #61afef; }
+    .token-tag { color: #e06c75; }
+    .token-attribute { color: #d19a66; }
+    .token-selector { color: #d19a66; }
+    .token-property { color: #56b6c2; }
+    .token-value { color: #98c379; }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .editor-container {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      
+      .editor-panel:first-child {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-200);
+      }
+      
+      #editor, #preview {
+        height: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🎯</div>
+        <h1>gs-mark2slides</h1>
+      </div>
+      <p class="subtitle">Transform your Marp presentations into beautiful Google Slides instantly</p>
+    </div>
+    
+    <div class="main-content">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <label for="themeSelector" style="font-weight: 500; color: var(--gray-700);">Theme:</label>
+          <select id="themeSelector" class="theme-selector" onchange="updatePreview()">
+            <option value="default">Default</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <button class="example-button" onclick="loadEnhancedExample()">
+          <span>✨</span>
+          <span>Load Example</span>
+        </button>
+      </div>
+      
+      <div class="editor-container">
+        <div class="editor-panel">
+          <div class="panel-header">
+            <span>📝</span>
+            <span>Marp Markdown</span>
+          </div>
+          <textarea id="editor" placeholder="Paste your Marp markdown here or click 'Load Example' to see what's possible...">---
+marp: true
+theme: default
+paginate: true
+title: Welcome to gs-mark2slides
+---
+
+# Welcome to gs-mark2slides! 🚀
+
+Create stunning Google Slides presentations from your Marp markdown.
+
+**No authentication required** - It just works!
+
+---
+
+## ✨ Features
+
+- 🎨 **Syntax highlighting** for multiple languages
+- 📝 **Rich text formatting** with inline styles
+- 🎭 **Multiple themes** to match your style
+- 📊 **Tables and lists** with proper formatting
+- 🔢 **Math expressions** support
+- 🖼️ **Smart image handling**
+
+---
+
+## 💻 Code Examples
+
+```javascript
+// JavaScript with syntax highlighting
+const greet = (name) => {
+  console.log(`Hello, ${name}!`);
+  return { success: true };
+};
+```
+
+```python
+# Python example
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+```
+
+---
+
+## 📋 Get Started
+
+1. **Write** your presentation in Marp markdown
+2. **Preview** it in real-time on the right
+3. **Convert** to Google Slides with one click
+4. **Share** your beautiful presentation!
+
+> It's that simple! Try it now by clicking the Convert button below.</textarea>
+        </div>
+        
+        <div class="editor-panel">
+          <div class="panel-header">
+            <span>👁️</span>
+            <span>Live Preview</span>
+          </div>
+          <div id="preview"></div>
+        </div>
+      </div>
+      
+      <div class="action-area">
+        <button id="convertButton" class="convert-button" onclick="convertToSlides()">
+          <span class="convert-button-icon">🚀</span>
+          <span>Convert to Google Slides</span>
+        </button>
+        <div id="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Enhanced Marp parser
+    function parseMarp(content) {
+      const slides = [];
+      const sections = content.split(/\n---\n/);
+      
+      // Parse frontmatter
+      let metadata = {
+        theme: 'default',
+        paginate: false,
+        title: 'Converted from Marp'
+      };
+      
+      let startIndex = 0;
+      if (sections[0].trim().startsWith('---')) {
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        if (frontmatterMatch) {
+          const frontmatter = frontmatterMatch[1];
+          frontmatter.split('\n').forEach(line => {
+            const [key, value] = line.split(':').map(s => s.trim());
+            if (key && value) {
+              metadata[key] = value.replace(/^["']|["']$/g, '');
+            }
+          });
+          startIndex = 1;
+        }
+      }
+      
+      // Parse slides
+      for (let slideIndex = startIndex; slideIndex < sections.length; slideIndex++) {
+        const slideContent = sections[slideIndex].trim();
+        const lines = slideContent.split('\n');
+        const content = [];
+        const slideMetadata = {};
+        let notes = '';
+        
+        // Process lines
+        const cleanLines = lines.filter(line => {
+          // Handle directives
+          if (line.startsWith('<!-- ') && line.endsWith(' -->')) {
+            const directive = line.slice(5, -4).trim();
+            if (directive.startsWith('_')) {
+              const [key, ...valueParts] = directive.substring(1).split(':');
+              slideMetadata[key.trim()] = valueParts.join(':').trim();
+              return false;
+            } else if (!directive.includes(':')) {
+              notes = directive;
+              return false;
+            }
+          }
+          return true;
+        });
+        
+        // Parse content elements
+        let i = 0;
+        while (i < cleanLines.length) {
+          const line = cleanLines[i];
+          
+          // Headers
+          if (line.match(/^#{1,6}\s+/)) {
+            const level = line.match(/^#+/)[0].length;
+            content.push({
+              type: 'heading',
+              level: level,
+              text: line.substring(level).trim()
+            });
+            i++;
+            continue;
+          }
+          
+          // Code blocks
+          if (line.startsWith('```')) {
+            const language = line.substring(3).trim() || 'text';
+            const codeLines = [];
+            i++;
+            while (i < cleanLines.length && !cleanLines[i].startsWith('```')) {
+              codeLines.push(cleanLines[i]);
+              i++;
+            }
+            content.push({
+              type: 'code',
+              language: language,
+              text: codeLines.join('\n')
+            });
+            i++;
+            continue;
+          }
+          
+          // Blockquotes
+          if (line.startsWith('>')) {
+            const quoteLines = [];
+            while (i < cleanLines.length && cleanLines[i].startsWith('>')) {
+              quoteLines.push(cleanLines[i].substring(1).trim());
+              i++;
+            }
+            content.push({
+              type: 'blockquote',
+              text: quoteLines.join('\n')
+            });
+            continue;
+          }
+          
+          // Tables
+          if (i + 1 < cleanLines.length && line.includes('|') && cleanLines[i + 1].match(/^\|[\s\-:|]+\|$/)) {
+            const tableRows = [];
+            const alignments = [];
+            
+            // Parse header
+            const headerCells = line.split('|').slice(1, -1).map(cell => cell.trim());
+            
+            // Parse alignment
+            const alignRow = cleanLines[i + 1];
+            alignRow.split('|').slice(1, -1).forEach(cell => {
+              const trimmed = cell.trim();
+              if (trimmed.startsWith(':') && trimmed.endsWith(':')) {
+                alignments.push('center');
+              } else if (trimmed.endsWith(':')) {
+                alignments.push('right');
+              } else {
+                alignments.push('left');
+              }
+            });
+            
+            tableRows.push({ cells: headerCells, isHeader: true });
+            
+            // Parse data rows
+            i += 2;
+            while (i < cleanLines.length && cleanLines[i].includes('|')) {
+              const cells = cleanLines[i].split('|').slice(1, -1).map(cell => cell.trim());
+              tableRows.push({ cells: cells, isHeader: false });
+              i++;
+            }
+            
+            content.push({
+              type: 'table',
+              rows: tableRows,
+              alignments: alignments
+            });
+            continue;
+          }
+          
+          // Images
+          const imageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+?)(\s*=(\d+)x(\d+))?\)$/);
+          if (imageMatch) {
+            content.push({
+              type: 'image',
+              alt: imageMatch[1],
+              src: imageMatch[2],
+              width: imageMatch[4] ? parseInt(imageMatch[4]) : null,
+              height: imageMatch[5] ? parseInt(imageMatch[5]) : null
+            });
+            i++;
+            continue;
+          }
+          
+          // Math blocks
+          if (line.startsWith('$$') && line.endsWith('$$')) {
+            content.push({
+              type: 'math',
+              text: line.slice(2, -2).trim(),
+              display: true
+            });
+            i++;
+            continue;
+          }
+          
+          // Lists
+          if (line.match(/^[\s]*[-*+]\s/) || line.match(/^[\s]*\d+\.\s/)) {
+            const items = [];
+            const isOrdered = line.match(/^[\s]*\d+\.\s/);
+            
+            while (i < cleanLines.length && (cleanLines[i].match(/^[\s]*[-*+]\s/) || cleanLines[i].match(/^[\s]*\d+\.\s/))) {
+              const indent = cleanLines[i].search(/\S/);
+              const text = cleanLines[i].replace(/^[\s]*[-*+]\s/, '').replace(/^[\s]*\d+\.\s/, '');
+              items.push({ text: text, indent: Math.floor(indent / 2) });
+              i++;
+            }
+            
+            content.push({
+              type: 'list',
+              ordered: isOrdered,
+              items: items
+            });
+            continue;
+          }
+          
+          // HR
+          if (line.match(/^-{3,}$/)) {
+            content.push({ type: 'hr' });
+            i++;
+            continue;
+          }
+          
+          // Paragraph
+          if (line.trim()) {
+            const paragraphLines = [];
+            while (i < cleanLines.length && cleanLines[i].trim() && 
+                   !cleanLines[i].match(/^#{1,6}\s+/) &&
+                   !cleanLines[i].startsWith('```') &&
+                   !cleanLines[i].startsWith('>') &&
+                   !cleanLines[i].includes('|') &&
+                   !cleanLines[i].match(/^!\[/) &&
+                   !cleanLines[i].match(/^[-*+]\s/) &&
+                   !cleanLines[i].match(/^\d+\.\s/) &&
+                   !cleanLines[i].match(/^-{3,}$/)) {
+              paragraphLines.push(cleanLines[i]);
+              i++;
+            }
+            content.push({
+              type: 'paragraph',
+              text: paragraphLines.join(' ')
+            });
+            continue;
+          }
+          
+          i++;
+        }
+        
+        slides.push({ content, metadata: slideMetadata, notes });
+      }
+      
+      return { metadata, slides };
+    }
+    
+    // Syntax highlighting
+    function highlightCode(code, language) {
+      // Simple syntax highlighting
+      let highlighted = escapeHtml(code);
+      
+      const patterns = {
+        javascript: [
+          { regex: /\b(const|let|var|function|return|if|else|for|while|class|import|export|new|this|=>|async|await)\b/g, class: 'token-keyword' },
+          { regex: /(["'`])(?:(?=(\\?))\2.)*?\1/g, class: 'token-string' },
+          { regex: /\b\d+(\.\d+)?\b/g, class: 'token-number' },
+          { regex: /\/\/.*$/gm, class: 'token-comment' },
+          { regex: /\/\*[\s\S]*?\*\//g, class: 'token-comment' }
+        ],
+        python: [
+          { regex: /\b(def|class|import|from|return|if|elif|else|for|while|in|and|or|not|try|except|finally|with|as|lambda)\b/g, class: 'token-keyword' },
+          { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, class: 'token-string' },
+          { regex: /\b\d+(\.\d+)?\b/g, class: 'token-number' },
+          { regex: /#.*$/gm, class: 'token-comment' }
+        ],
+        html: [
+          { regex: /<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s|>|\/)/g, class: 'token-tag' },
+          { regex: /\s[a-zA-Z-]+(?=\s*=)/g, class: 'token-attribute' },
+          { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, class: 'token-string' },
+          { regex: /<!--[\s\S]*?-->/g, class: 'token-comment' }
+        ],
+        css: [
+          { regex: /[.#]?[a-zA-Z][a-zA-Z0-9-_]*(?=\s*{)/g, class: 'token-selector' },
+          { regex: /[a-zA-Z-]+(?=\s*:)/g, class: 'token-property' },
+          { regex: /:\s*[^;{]+/g, class: 'token-value' },
+          { regex: /\/\*[\s\S]*?\*\//g, class: 'token-comment' }
+        ]
+      };
+      
+      const languagePatterns = patterns[language] || [];
+      languagePatterns.forEach(pattern => {
+        highlighted = highlighted.replace(pattern.regex, match => `<span class="${pattern.class}">${match}</span>`);
+      });
+      
+      return highlighted;
+    }
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+    
+    // Process inline markdown
+    function processInlineMarkdown(text) {
+      let processed = escapeHtml(text);
+      
+      // Bold
+      processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      processed = processed.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+      
+      // Italic
+      processed = processed.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      processed = processed.replace(/_([^_]+)_/g, '<em>$1</em>');
+      
+      // Strikethrough
+      processed = processed.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+      
+      // Inline code
+      processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Links
+      processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      
+      // Inline math
+      processed = processed.replace(/\$([^$]+)\$/g, '<span class="math">$1</span>');
+      
+      return processed;
+    }
+    
+    // Update preview
+    function updatePreview() {
+      const content = document.getElementById('editor').value;
+      const preview = document.getElementById('preview');
+      const theme = document.getElementById('themeSelector').value;
+      
+      if (!content.trim()) {
+        preview.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 3rem;"><p style="font-size: 1.125rem;">Start typing to see preview...</p><p style="margin-top: 1rem;">or click "Load Example" to see what\'s possible!</p></div>';
+        return;
+      }
+      
+      try {
+        const parsed = parseMarp(content);
+        preview.innerHTML = parsed.slides.map((slide, index) => `
+          <div class="preview-slide theme-${theme}">
+            <span class="slide-number">Slide ${index + 1}</span>
+            ${slide.content.map(elem => {
+              switch (elem.type) {
+                case 'heading':
+                  return `<h${elem.level}>${processInlineMarkdown(elem.text || '')}</h${elem.level}>`;
+                case 'paragraph':
+                  return `<p>${processInlineMarkdown(elem.text || '')}</p>`;
+                case 'list':
+                  const tag = elem.ordered ? 'ol' : 'ul';
+                  return `<${tag}>${elem.items?.map(item => 
+                    `<li style="margin-left: ${item.indent * 20}px">${processInlineMarkdown(item.text)}</li>`
+                  ).join('') || ''}</${tag}>`;
+                case 'code':
+                  return `<pre><code>${highlightCode(elem.text || '', elem.language)}</code></pre>`;
+                case 'blockquote':
+                  return `<blockquote>${processInlineMarkdown(elem.text || '')}</blockquote>`;
+                case 'table':
+                  return `<table>
+                    ${elem.rows?.map(row => `
+                      <tr>
+                        ${row.cells?.map((cell, idx) => {
+                          const tag = row.isHeader ? 'th' : 'td';
+                          const align = elem.alignments?.[idx] || 'left';
+                          return `<${tag} style="text-align: ${align}">${processInlineMarkdown(cell)}</${tag}>`;
+                        }).join('') || ''}
+                      </tr>
+                    `).join('') || ''}
+                  </table>`;
+                case 'image':
+                  const width = elem.width ? `width="${elem.width}"` : '';
+                  const height = elem.height ? `height="${elem.height}"` : '';
+                  return `<img src="${elem.src}" alt="${elem.alt}" ${width} ${height} style="max-width: 100%; display: block; margin: 0 auto;">`;
+                case 'math':
+                  return `<div class="math ${elem.display ? 'display' : ''}">${escapeHtml(elem.text || '')}</div>`;
+                case 'hr':
+                  return '<hr>';
+                default:
+                  return '';
+              }
+            }).join('')}
+            ${slide.notes ? `<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.875rem;"><em>Speaker notes: ${slide.notes}</em></div>` : ''}
+          </div>
+        `).join('');
+      } catch (error) {
+        preview.innerHTML = '<div class="status error">Failed to parse markdown: ' + error.message + '</div>';
+      }
+    }
+    
+    // Update preview on input
+    document.getElementById('editor').addEventListener('input', updatePreview);
+    updatePreview();
+    
+    // Convert to slides
+    function convertToSlides() {
+      const button = document.getElementById('convertButton');
+      const status = document.getElementById('status');
+      const content = document.getElementById('editor').value;
+      
+      if (!content.trim()) {
+        showError('Please enter some Marp markdown first');
+        return;
+      }
+      
+      button.disabled = true;
+      button.innerHTML = '<span class="loading"></span><span>Converting...</span>';
+      status.innerHTML = '';
+      
+      try {
+        google.script.run
+          .withSuccessHandler(result => {
+            button.disabled = false;
+            button.innerHTML = '<span class="convert-button-icon">🚀</span><span>Convert to Google Slides</span>';
+            
+            if (result.success) {
+              status.className = 'status success';
+              status.innerHTML = `
+                <h3>✅ Success!</h3>
+                <p>Created ${result.slideCount} slides</p>
+                <a href="${result.url}" target="_blank">
+                  <span>📊 Open your presentation</span>
+                  <span>→</span>
+                </a>
+              `;
+            } else {
+              showError('Conversion failed: ' + result.error);
+            }
+          })
+          .withFailureHandler(error => {
+            button.disabled = false;
+            button.innerHTML = '<span class="convert-button-icon">🚀</span><span>Convert to Google Slides</span>';
+            showError('Conversion failed: ' + error.message);
+          })
+          .createPresentation(content);
+          
+      } catch (error) {
+        button.disabled = false;
+        button.innerHTML = '<span class="convert-button-icon">🚀</span><span>Convert to Google Slides</span>';
+        showError('Failed to parse markdown: ' + error.message);
+      }
+    }
+    
+    function showError(message) {
+      const status = document.getElementById('status');
+      status.className = 'status error';
+      status.innerHTML = `<strong>Error:</strong> ${message}`;
+    }
+    
+    // Load enhanced example
+    function loadEnhancedExample() {
+      document.getElementById('editor').value = `---
+marp: true
+theme: dark
+paginate: true
+title: gs-mark2slides Enhanced Demo
+---
+
+# gs-mark2slides Enhanced Demo 🎨
+
+Experience the power of **syntax highlighting**, *rich formatting*, and ~~advanced~~ awesome features!
+
+---
+
+## 💻 Syntax Highlighting
+
+### JavaScript
+\`\`\`javascript
+// Modern JavaScript with arrow functions
+const fibonacci = (n) => {
+  const memo = {};
+  
+  const fib = (num) => {
+    if (num in memo) return memo[num];
+    if (num <= 1) return num;
+    
+    memo[num] = fib(num - 1) + fib(num - 2);
+    return memo[num];
+  };
+  
+  return fib(n);
+};
+
+console.log(fibonacci(10)); // 55
+\`\`\`
+
+---
+
+## 🐍 Python Example
+
+\`\`\`python
+# Python with type hints
+from typing import List, Optional
+
+def quick_sort(arr: List[int]) -> List[int]:
+    """Sort array using quicksort algorithm"""
+    if len(arr) <= 1:
+        return arr
+    
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    
+    return quick_sort(left) + middle + quick_sort(right)
+
+# Test the function
+numbers = [3, 1, 4, 1, 5, 9, 2, 6]
+sorted_nums = quick_sort(numbers)
+print(f"Sorted: {sorted_nums}")
+\`\`\`
+
+---
+
+## 📊 Advanced Tables
+
+| Language | Paradigm | Typing | Performance |
+|:---------|:--------:|-------:|:-----------:|
+| Python | Multi | Dynamic | ⭐⭐⭐ |
+| JavaScript | Multi | Dynamic | ⭐⭐⭐⭐ |
+| Rust | Systems | Static | ⭐⭐⭐⭐⭐ |
+| Go | Concurrent | Static | ⭐⭐⭐⭐⭐ |
+
+> **Note:** Performance ratings are relative and depend on use case
+
+---
+
+## 🎯 Lists and Formatting
+
+### Todo List
+- [x] Implement syntax highlighting
+- [x] Add theme support
+- [x] Create beautiful UI
+- [ ] Add more languages
+
+### Nested Features
+1. **Text Formatting**
+   - *Italic* and **bold** text
+   - \`Inline code\` snippets
+   - ~~Strikethrough~~ for corrections
+2. **Advanced Elements**
+   - Tables with alignment
+   - Code blocks with highlighting
+   - Math expressions: $E = mc^2$
+
+---
+
+## 🔢 Mathematical Expressions
+
+Inline math: The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+Display math:
+$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$
+
+---
+
+## 🌈 Custom Backgrounds
+
+<!-- _backgroundColor: #2d3748 -->
+
+### Dark Background Slide
+
+This slide has a custom background color!
+
+You can customize:
+- Background colors with \`_backgroundColor\`
+- Background images with \`_backgroundImage\`
+- Individual slide themes
+
+---
+
+## 🎉 Ready to Convert?
+
+You've seen what gs-mark2slides can do:
+
+✅ **Syntax highlighting** for beautiful code
+✅ **Rich formatting** for expressive content
+✅ **Theme support** for any occasion
+✅ **Tables & lists** for organized data
+✅ **Math support** for technical content
+
+Click **"Convert to Google Slides"** below to transform this into a presentation!
+
+<!-- This is a speaker note that will be preserved in Google Slides -->`;
+      updatePreview();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1285 @@
+/**
+ * gs-mark2slides - Google Apps Script (Enhanced Version)
+ * Converts Marp markdown to Google Slides with advanced features
+ */
+
+// Constants for layout and styling
+const SLIDE_WIDTH = 720;
+const SLIDE_HEIGHT = 540;
+const MARGIN = 50;
+const CONTENT_WIDTH = SLIDE_WIDTH - (MARGIN * 2);
+const DEFAULT_FONT_SIZE = 14;
+const HEADING_SIZES = [32, 28, 24, 20, 18, 16];
+const CODE_FONT = 'Courier New';
+const CODE_BACKGROUND = '#f5f5f5';
+const INLINE_CODE_BACKGROUND = '#e8e8e8';
+
+// Theme definitions
+const THEMES = {
+  default: {
+    backgroundColor: '#ffffff',
+    textColor: '#333333',
+    headingColor: '#000000',
+    codeBackground: '#f5f5f5',
+    codeTextColor: '#333333',
+    linkColor: '#0066cc',
+    blockquoteColor: '#666666',
+    tableHeaderBg: '#f0f0f0',
+    tableAltRowBg: '#f9f9f9'
+  },
+  dark: {
+    backgroundColor: '#1e1e1e',
+    textColor: '#e0e0e0',
+    headingColor: '#ffffff',
+    codeBackground: '#2d2d2d',
+    codeTextColor: '#f8f8f2',
+    linkColor: '#66d9ef',
+    blockquoteColor: '#999999',
+    tableHeaderBg: '#333333',
+    tableAltRowBg: '#2a2a2a'
+  },
+  light: {
+    backgroundColor: '#fafafa',
+    textColor: '#444444',
+    headingColor: '#222222',
+    codeBackground: '#f0f0f0',
+    codeTextColor: '#444444',
+    linkColor: '#0080ff',
+    blockquoteColor: '#777777',
+    tableHeaderBg: '#e0e0e0',
+    tableAltRowBg: '#f5f5f5'
+  }
+};
+
+// Syntax highlighting color schemes
+const SYNTAX_COLORS = {
+  javascript: {
+    keyword: '#c678dd',
+    string: '#98c379',
+    number: '#d19a66',
+    comment: '#5c6370',
+    function: '#61afef',
+    operator: '#56b6c2'
+  },
+  python: {
+    keyword: '#ff79c6',
+    string: '#f1fa8c',
+    number: '#bd93f9',
+    comment: '#6272a4',
+    function: '#50fa7b',
+    operator: '#ff79c6'
+  },
+  java: {
+    keyword: '#cc7832',
+    string: '#6a8759',
+    number: '#6897bb',
+    comment: '#808080',
+    function: '#ffc66d',
+    operator: '#cc7832'
+  },
+  html: {
+    tag: '#e06c75',
+    attribute: '#d19a66',
+    string: '#98c379',
+    comment: '#5c6370'
+  },
+  css: {
+    selector: '#d19a66',
+    property: '#56b6c2',
+    value: '#98c379',
+    comment: '#5c6370'
+  },
+  sql: {
+    keyword: '#c678dd',
+    string: '#98c379',
+    number: '#d19a66',
+    comment: '#5c6370',
+    function: '#61afef'
+  }
+};
+
+// Entry point for web app
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('gs-mark2slides - Convert Marp to Google Slides')
+    .setWidth(1200)
+    .setHeight(800);
+}
+
+/**
+ * Main conversion function called from the web interface
+ */
+function createPresentation(markdown) {
+  try {
+    // Parse the Marp markdown
+    const parsedData = parseMarpMarkdown(markdown);
+    
+    // Create a new presentation
+    const presentation = SlidesApp.create(parsedData.metadata.title || 'Converted from Marp');
+    const presentationId = presentation.getId();
+    
+    // Remove the default slide
+    const slides = presentation.getSlides();
+    if (slides.length > 0) {
+      slides[0].remove();
+    }
+    
+    // Apply theme
+    const themeName = parsedData.metadata.theme || 'default';
+    const theme = THEMES[themeName] || THEMES.default;
+    
+    // Add slides from parsed data
+    parsedData.slides.forEach((slideData, index) => {
+      createSlide(presentation, slideData, index, parsedData.metadata, theme);
+    });
+    
+    return {
+      success: true,
+      presentationId: presentationId,
+      url: presentation.getUrl(),
+      slideCount: presentation.getSlides().length,
+      title: parsedData.metadata.title || 'Converted from Marp'
+    };
+    
+  } catch (error) {
+    console.error('Conversion error:', error);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+/**
+ * Parse Marp markdown into structured data
+ */
+function parseMarpMarkdown(markdown) {
+  const lines = markdown.split('\n');
+  const result = {
+    metadata: {},
+    slides: []
+  };
+  
+  let currentSlide = null;
+  let inFrontmatter = false;
+  let inCodeBlock = false;
+  let codeBlockLang = '';
+  let codeBlockContent = [];
+  let currentContent = [];
+  let speakerNotes = [];
+  let inSpeakerNotes = false;
+  
+  // Check for frontmatter
+  if (lines[0] === '---') {
+    inFrontmatter = true;
+    let frontmatterLines = [];
+    let i = 1;
+    
+    while (i < lines.length && lines[i] !== '---') {
+      frontmatterLines.push(lines[i]);
+      i++;
+    }
+    
+    // Parse frontmatter
+    result.metadata = parseFrontmatter(frontmatterLines.join('\n'));
+    lines.splice(0, i + 1);
+  }
+  
+  // Process lines
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    // Check for slide separator
+    if (trimmedLine === '---' && !inCodeBlock) {
+      // Save current slide if exists
+      if (currentSlide || currentContent.length > 0) {
+        if (!currentSlide) {
+          currentSlide = { metadata: {}, content: [], notes: '' };
+        }
+        if (currentContent.length > 0) {
+          currentSlide.content = parseSlideContent(currentContent.join('\n'));
+        }
+        if (speakerNotes.length > 0) {
+          currentSlide.notes = speakerNotes.join('\n').trim();
+        }
+        result.slides.push(currentSlide);
+      }
+      
+      // Reset for new slide
+      currentSlide = { metadata: {}, content: [], notes: '' };
+      currentContent = [];
+      speakerNotes = [];
+      inSpeakerNotes = false;
+      continue;
+    }
+    
+    // Check for slide directives
+    if (trimmedLine.startsWith('<!-- ') && trimmedLine.endsWith(' -->')) {
+      const directive = trimmedLine.slice(5, -4).trim();
+      if (directive.startsWith('_')) {
+        // Local directive for current slide
+        const [key, ...valueParts] = directive.slice(1).split(':');
+        const value = valueParts.join(':').trim();
+        if (!currentSlide) {
+          currentSlide = { metadata: {}, content: [], notes: '' };
+        }
+        currentSlide.metadata[key] = value;
+        continue;
+      }
+    }
+    
+    // Check for speaker notes
+    if (trimmedLine.startsWith('<!--') && !trimmedLine.endsWith('-->')) {
+      inSpeakerNotes = true;
+      speakerNotes.push(trimmedLine.slice(4).trim());
+      continue;
+    }
+    
+    if (inSpeakerNotes) {
+      if (trimmedLine.endsWith('-->')) {
+        speakerNotes.push(trimmedLine.slice(0, -3).trim());
+        inSpeakerNotes = false;
+      } else {
+        speakerNotes.push(line);
+      }
+      continue;
+    }
+    
+    // Check for code blocks
+    if (trimmedLine.startsWith('```')) {
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        codeBlockLang = trimmedLine.slice(3).trim();
+        codeBlockContent = [];
+      } else {
+        inCodeBlock = false;
+        currentContent.push('```' + codeBlockLang);
+        currentContent.push(...codeBlockContent);
+        currentContent.push('```');
+        codeBlockLang = '';
+        codeBlockContent = [];
+      }
+      continue;
+    }
+    
+    if (inCodeBlock) {
+      codeBlockContent.push(line);
+    } else {
+      currentContent.push(line);
+    }
+  }
+  
+  // Don't forget the last slide
+  if (currentSlide || currentContent.length > 0) {
+    if (!currentSlide) {
+      currentSlide = { metadata: {}, content: [], notes: '' };
+    }
+    if (currentContent.length > 0) {
+      currentSlide.content = parseSlideContent(currentContent.join('\n'));
+    }
+    if (speakerNotes.length > 0) {
+      currentSlide.notes = speakerNotes.join('\n').trim();
+    }
+    result.slides.push(currentSlide);
+  }
+  
+  return result;
+}
+
+/**
+ * Parse frontmatter YAML (simplified)
+ */
+function parseFrontmatter(yaml) {
+  const metadata = {};
+  const lines = yaml.split('\n');
+  
+  lines.forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      const value = line.slice(colonIndex + 1).trim();
+      metadata[key] = value.replace(/^["']|["']$/g, '');
+    }
+  });
+  
+  return metadata;
+}
+
+/**
+ * Parse slide content into structured elements
+ */
+function parseSlideContent(markdown) {
+  const elements = [];
+  const lines = markdown.split('\n');
+  
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines
+    if (!trimmedLine) {
+      i++;
+      continue;
+    }
+    
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      elements.push({
+        type: 'heading',
+        level: headingMatch[1].length,
+        text: headingMatch[2]
+      });
+      i++;
+      continue;
+    }
+    
+    // Horizontal rule
+    if (/^[-*_]{3,}$/.test(trimmedLine)) {
+      elements.push({ type: 'hr' });
+      i++;
+      continue;
+    }
+    
+    // Code block
+    if (trimmedLine.startsWith('```')) {
+      const lang = trimmedLine.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      elements.push({
+        type: 'code',
+        language: lang,
+        text: codeLines.join('\n')
+      });
+      i++;
+      continue;
+    }
+    
+    // Blockquote
+    if (trimmedLine.startsWith('>')) {
+      const quoteLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ''));
+        i++;
+      }
+      elements.push({
+        type: 'blockquote',
+        text: quoteLines.join('\n')
+      });
+      continue;
+    }
+    
+    // List (unordered or ordered)
+    if (/^[-*+]\s/.test(trimmedLine) || /^\d+\.\s/.test(trimmedLine)) {
+      const listItems = [];
+      const isOrdered = /^\d+\./.test(trimmedLine);
+      
+      while (i < lines.length && (
+        /^[-*+]\s/.test(lines[i].trim()) || 
+        /^\d+\.\s/.test(lines[i].trim()) ||
+        /^\s{2,}/.test(lines[i]) // Nested items
+      )) {
+        const itemLine = lines[i];
+        const indent = itemLine.search(/\S/);
+        const text = itemLine.replace(/^(\s*)[-*+]\s/, '').replace(/^(\s*)\d+\.\s/, '');
+        
+        listItems.push({
+          text: text,
+          indent: Math.floor(indent / 2)
+        });
+        i++;
+      }
+      
+      elements.push({
+        type: 'list',
+        ordered: isOrdered,
+        items: listItems
+      });
+      continue;
+    }
+    
+    // Table
+    if (i + 1 < lines.length && /^\|/.test(trimmedLine) && /^\|[-:\s|]+\|$/.test(lines[i + 1].trim())) {
+      const tableRows = [];
+      const alignments = [];
+      
+      // Header row
+      const headerCells = trimmedLine.split('|').slice(1, -1).map(cell => cell.trim());
+      
+      // Parse alignments from separator
+      const separatorCells = lines[i + 1].trim().split('|').slice(1, -1);
+      separatorCells.forEach(cell => {
+        const trimmed = cell.trim();
+        if (trimmed.startsWith(':') && trimmed.endsWith(':')) {
+          alignments.push('center');
+        } else if (trimmed.endsWith(':')) {
+          alignments.push('right');
+        } else {
+          alignments.push('left');
+        }
+      });
+      
+      tableRows.push({ cells: headerCells, isHeader: true });
+      
+      // Skip separator
+      i += 2;
+      
+      // Data rows
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
+        const cells = lines[i].trim().split('|').slice(1, -1).map(cell => cell.trim());
+        tableRows.push({ cells: cells, isHeader: false });
+        i++;
+      }
+      
+      elements.push({
+        type: 'table',
+        rows: tableRows,
+        alignments: alignments
+      });
+      continue;
+    }
+    
+    // Image with size support
+    const imageSizeMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\s*=(\d+)?x?(\d+)?\)$/);
+    if (imageSizeMatch) {
+      elements.push({
+        type: 'image',
+        alt: imageSizeMatch[1],
+        src: imageSizeMatch[2],
+        width: imageSizeMatch[3] ? parseInt(imageSizeMatch[3]) : null,
+        height: imageSizeMatch[4] ? parseInt(imageSizeMatch[4]) : null
+      });
+      i++;
+      continue;
+    }
+    
+    // Image (standard)
+    const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch) {
+      elements.push({
+        type: 'image',
+        alt: imageMatch[1],
+        src: imageMatch[2]
+      });
+      i++;
+      continue;
+    }
+    
+    // Math expression (basic support)
+    if (trimmedLine.startsWith('$$') && trimmedLine.endsWith('$$')) {
+      elements.push({
+        type: 'math',
+        text: trimmedLine.slice(2, -2).trim(),
+        display: true
+      });
+      i++;
+      continue;
+    }
+    
+    // Paragraph (default)
+    const paragraphLines = [];
+    while (i < lines.length && lines[i].trim() && 
+           !lines[i].trim().startsWith('#') &&
+           !lines[i].trim().startsWith('```') &&
+           !lines[i].trim().startsWith('>') &&
+           !lines[i].trim().startsWith('![') &&
+           !lines[i].trim().startsWith('$$') &&
+           !/^[-*+]\s/.test(lines[i].trim()) &&
+           !/^\d+\.\s/.test(lines[i].trim()) &&
+           !/^[-*_]{3,}$/.test(lines[i].trim())) {
+      paragraphLines.push(lines[i]);
+      i++;
+    }
+    
+    if (paragraphLines.length > 0) {
+      elements.push({
+        type: 'paragraph',
+        text: paragraphLines.join(' ')
+      });
+    }
+  }
+  
+  return elements;
+}
+
+/**
+ * Create a slide with all content
+ */
+function createSlide(presentation, slideData, index, globalMetadata, theme) {
+  const slide = presentation.appendSlide();
+  
+  // Apply slide metadata
+  applySlideMetadata(slide, slideData.metadata, globalMetadata, theme);
+  
+  // Calculate positions
+  let yPosition = MARGIN;
+  const elementSpacing = 20;
+  
+  // Add content elements
+  slideData.content.forEach((element, idx) => {
+    const remainingHeight = SLIDE_HEIGHT - yPosition - MARGIN;
+    
+    // Check if we have enough space
+    if (remainingHeight < 50) {
+      // Not enough space for more content
+      return;
+    }
+    
+    switch (element.type) {
+      case 'heading':
+        yPosition = addHeading(slide, element, yPosition, theme);
+        break;
+        
+      case 'paragraph':
+        yPosition = addParagraph(slide, element, yPosition, theme);
+        break;
+        
+      case 'list':
+        yPosition = addList(slide, element, yPosition, theme);
+        break;
+        
+      case 'code':
+        yPosition = addCodeBlock(slide, element, yPosition, theme);
+        break;
+        
+      case 'image':
+        yPosition = addImage(slide, element, yPosition);
+        break;
+        
+      case 'table':
+        yPosition = addTable(slide, element, yPosition, theme);
+        break;
+        
+      case 'blockquote':
+        yPosition = addBlockquote(slide, element, yPosition, theme);
+        break;
+        
+      case 'hr':
+        yPosition = addHorizontalRule(slide, yPosition);
+        break;
+        
+      case 'math':
+        yPosition = addMathExpression(slide, element, yPosition, theme);
+        break;
+    }
+    
+    yPosition += elementSpacing;
+  });
+  
+  // Add speaker notes
+  if (slideData.notes) {
+    slide.getNotesPage().getSpeakerNotesShape().getText().setText(slideData.notes);
+  }
+  
+  // Add page number if paginate is enabled
+  if (globalMetadata.paginate === 'true') {
+    addPageNumber(slide, index + 1, presentation.getSlides().length);
+  }
+  
+  // Add header/footer if specified
+  if (globalMetadata.header) {
+    addHeader(slide, globalMetadata.header);
+  }
+  if (globalMetadata.footer) {
+    addFooter(slide, globalMetadata.footer);
+  }
+}
+
+/**
+ * Apply slide metadata with theme support
+ */
+function applySlideMetadata(slide, slideMetadata, globalMetadata, theme) {
+  // Background color
+  const bgColor = slideMetadata.backgroundColor || 
+                  globalMetadata.backgroundColor || 
+                  theme.backgroundColor;
+  if (bgColor) {
+    slide.getBackground().setSolidFill(bgColor);
+  }
+  
+  // Background gradient
+  const bgGradient = slideMetadata.backgroundGradient || globalMetadata.backgroundGradient;
+  if (bgGradient) {
+    try {
+      // Parse gradient format: "linear-gradient(to bottom, #color1, #color2)"
+      const gradientMatch = bgGradient.match(/linear-gradient\s*\(\s*to\s+(\w+),\s*([^,]+),\s*([^)]+)\)/);
+      if (gradientMatch) {
+        const direction = gradientMatch[1];
+        const color1 = gradientMatch[2].trim();
+        const color2 = gradientMatch[3].trim();
+        
+        const gradient = slide.getBackground().setSolidFill(color1);
+        // Note: GAS doesn't support true gradients, so we use solid color as fallback
+      }
+    } catch (error) {
+      console.log('Could not apply gradient:', error);
+    }
+  }
+  
+  // Background image (including data URLs)
+  const bgImage = slideMetadata.backgroundImage || globalMetadata.backgroundImage;
+  if (bgImage) {
+    try {
+      if (bgImage.startsWith('data:')) {
+        // Handle data URL
+        const base64Data = bgImage.split(',')[1];
+        const blob = Utilities.newBlob(Utilities.base64Decode(base64Data));
+        const temp = DriveApp.createFile(blob);
+        slide.getBackground().setPictureFill(temp.getBlob());
+        DriveApp.removeFile(temp);
+      } else if (bgImage.startsWith('http')) {
+        // Handle URL (with limitations)
+        // For now, we'll skip URL images due to GAS limitations
+      } else if (bgImage.startsWith('drive:')) {
+        // Handle Drive images
+        const fileId = bgImage.slice(6);
+        const driveFile = DriveApp.getFileById(fileId);
+        slide.getBackground().setPictureFill(driveFile.getBlob());
+      }
+    } catch (error) {
+      console.log('Could not set background image:', error);
+    }
+  }
+}
+
+/**
+ * Add heading element with theme support
+ */
+function addHeading(slide, element, yPosition, theme) {
+  const fontSize = HEADING_SIZES[element.level - 1] || 16;
+  const height = fontSize + 10;
+  const text = element.text || '';
+  
+  const textBox = slide.insertTextBox(text, MARGIN, yPosition, CONTENT_WIDTH, height);
+  const textStyle = textBox.getText().getTextStyle();
+  textStyle.setFontSize(fontSize);
+  textStyle.setBold(true);
+  textStyle.setForegroundColor(theme.headingColor);
+  
+  return yPosition + height;
+}
+
+/**
+ * Add paragraph element with enhanced markdown support
+ */
+function addParagraph(slide, element, yPosition, theme) {
+  const text = element.text || '';
+  const lines = Math.ceil(text.length / 80) || 1;
+  const height = lines * 20 + 10;
+  
+  const textBox = slide.insertTextBox('', MARGIN, yPosition, CONTENT_WIDTH, height);
+  const textRange = textBox.getText();
+  
+  // Parse and apply inline formatting
+  applyInlineFormatting(textRange, text, theme);
+  
+  return yPosition + height;
+}
+
+/**
+ * Apply inline formatting (bold, italic, code, links, etc.)
+ */
+function applyInlineFormatting(textRange, text, theme) {
+  // Ensure text is a string
+  const safeText = text || '';
+  
+  // First, set the plain text
+  textRange.setText(safeText);
+  
+  // Apply base style
+  textRange.getTextStyle().setFontSize(DEFAULT_FONT_SIZE);
+  textRange.getTextStyle().setForegroundColor(theme.textColor);
+  
+  // Pattern matching for inline elements
+  const patterns = [
+    // Bold
+    { regex: /\*\*([^*]+)\*\*/g, style: 'bold' },
+    { regex: /__([^_]+)__/g, style: 'bold' },
+    // Italic
+    { regex: /\*([^*]+)\*/g, style: 'italic' },
+    { regex: /_([^_]+)_/g, style: 'italic' },
+    // Strikethrough
+    { regex: /~~([^~]+)~~/g, style: 'strikethrough' },
+    // Inline code
+    { regex: /`([^`]+)`/g, style: 'code' },
+    // Links
+    { regex: /\[([^\]]+)\]\(([^)]+)\)/g, style: 'link' }
+  ];
+  
+  // Process each pattern
+  patterns.forEach(pattern => {
+    let match;
+    const regex = new RegExp(pattern.regex);
+    
+    while ((match = regex.exec(safeText)) !== null) {
+      const startIndex = match.index;
+      const endIndex = startIndex + match[0].length;
+      const content = match[1];
+      
+      try {
+        const length = endIndex - startIndex;
+        const subRange = textRange.getRange(startIndex, length);
+        
+        switch (pattern.style) {
+          case 'bold':
+            subRange.getTextStyle().setBold(true);
+            break;
+          case 'italic':
+            subRange.getTextStyle().setItalic(true);
+            break;
+          case 'strikethrough':
+            subRange.getTextStyle().setStrikethrough(true);
+            break;
+          case 'code':
+            subRange.getTextStyle().setFontFamily(CODE_FONT);
+            subRange.getTextStyle().setBackgroundColor(INLINE_CODE_BACKGROUND);
+            break;
+          case 'link':
+            const linkText = match[1];
+            const linkUrl = match[2];
+            subRange.getTextStyle().setLinkUrl(linkUrl);
+            subRange.getTextStyle().setForegroundColor(theme.linkColor);
+            subRange.getTextStyle().setUnderline(true);
+            break;
+        }
+      } catch (e) {
+        // Skip if range is invalid
+      }
+    }
+  });
+}
+
+/**
+ * Add list element with nested support
+ */
+function addList(slide, element, yPosition, theme) {
+  let currentY = yPosition;
+  
+  element.items.forEach((item, idx) => {
+    const indent = item.indent || 0;
+    const bulletSymbols = ['•', '◦', '▪', '▫'];
+    const bullet = element.ordered 
+      ? `${idx + 1}. ` 
+      : bulletSymbols[Math.min(indent, bulletSymbols.length - 1)] + ' ';
+    
+    const leftMargin = MARGIN + (indent * 20);
+    const width = CONTENT_WIDTH - (indent * 20);
+    
+    const textBox = slide.insertTextBox('', leftMargin, currentY, width, 25);
+    const textRange = textBox.getText();
+    
+    // Add bullet and apply formatting
+    const itemText = item.text || '';
+    textRange.setText(bullet + itemText);
+    textRange.getTextStyle().setFontSize(DEFAULT_FONT_SIZE);
+    textRange.getTextStyle().setForegroundColor(theme.textColor);
+    
+    // Apply inline formatting to the item text
+    const bulletLength = bullet.length;
+    const fullText = bullet + itemText;
+    if (fullText.length > bulletLength) {
+      const itemTextRange = textRange.getRange(bulletLength, fullText.length - bulletLength);
+      applyInlineFormatting(itemTextRange, itemText, theme);
+    }
+    
+    currentY += 25;
+  });
+  
+  return currentY;
+}
+
+/**
+ * Add code block with syntax highlighting
+ */
+function addCodeBlock(slide, element, yPosition, theme) {
+  const text = element.text || '';
+  const lines = text.split('\n');
+  const height = Math.min(lines.length * 15 + 20, 300);
+  
+  const codeBox = slide.insertTextBox('', MARGIN, yPosition, CONTENT_WIDTH, height);
+  const textRange = codeBox.getText();
+  
+  // Set base style
+  textRange.setText(text);
+  textRange.getTextStyle().setFontFamily(CODE_FONT);
+  textRange.getTextStyle().setFontSize(12);
+  textRange.getTextStyle().setForegroundColor(theme.codeTextColor);
+  
+  // Set background
+  codeBox.getFill().setSolidFill(theme.codeBackground);
+  codeBox.getBorder().getLineFill().setSolidFill('#cccccc');
+  
+  // Apply syntax highlighting if language is specified
+  if (element.language && SYNTAX_COLORS[element.language]) {
+    applySyntaxHighlighting(textRange, text, element.language);
+  }
+  
+  return yPosition + height;
+}
+
+/**
+ * Apply syntax highlighting to code
+ */
+function applySyntaxHighlighting(textRange, code, language) {
+  const colors = SYNTAX_COLORS[language];
+  if (!colors) return;
+  
+  // Define patterns for different languages
+  const patterns = {
+    javascript: [
+      { regex: /\b(const|let|var|function|return|if|else|for|while|class|extends|import|export|default|new|this|super|async|await|try|catch|finally|throw)\b/g, color: colors.keyword },
+      { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, color: colors.string },
+      { regex: /\b\d+(\.\d+)?\b/g, color: colors.number },
+      { regex: /\/\/.*$/gm, color: colors.comment },
+      { regex: /\/\*[\s\S]*?\*\//g, color: colors.comment },
+      { regex: /\b([a-zA-Z_]\w*)\s*\(/g, color: colors.function }
+    ],
+    python: [
+      { regex: /\b(def|class|import|from|return|if|elif|else|for|while|in|and|or|not|try|except|finally|raise|with|as|lambda|yield|pass|break|continue)\b/g, color: colors.keyword },
+      { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, color: colors.string },
+      { regex: /\b\d+(\.\d+)?\b/g, color: colors.number },
+      { regex: /#.*$/gm, color: colors.comment },
+      { regex: /\b([a-zA-Z_]\w*)\s*\(/g, color: colors.function }
+    ],
+    java: [
+      { regex: /\b(public|private|protected|static|final|class|interface|extends|implements|new|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package)\b/g, color: colors.keyword },
+      { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, color: colors.string },
+      { regex: /\b\d+(\.\d+)?[fFdDlL]?\b/g, color: colors.number },
+      { regex: /\/\/.*$/gm, color: colors.comment },
+      { regex: /\/\*[\s\S]*?\*\//g, color: colors.comment }
+    ],
+    html: [
+      { regex: /<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s|>|\/)/g, color: colors.tag },
+      { regex: /\s[a-zA-Z-]+(?=\s*=)/g, color: colors.attribute },
+      { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, color: colors.string },
+      { regex: /<!--[\s\S]*?-->/g, color: colors.comment }
+    ],
+    css: [
+      { regex: /[.#]?[a-zA-Z][a-zA-Z0-9-_]*(?=\s*{)/g, color: colors.selector },
+      { regex: /[a-zA-Z-]+(?=\s*:)/g, color: colors.property },
+      { regex: /:\s*[^;{]+/g, color: colors.value },
+      { regex: /\/\*[\s\S]*?\*\//g, color: colors.comment }
+    ],
+    sql: [
+      { regex: /\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|ALTER|DROP|INDEX|VIEW|PROCEDURE|FUNCTION|TRIGGER|AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE|ORDER|BY|GROUP|HAVING|UNION|ALL|DISTINCT|LIMIT|OFFSET)\b/gi, color: colors.keyword },
+      { regex: /(["'])(?:(?=(\\?))\2.)*?\1/g, color: colors.string },
+      { regex: /\b\d+(\.\d+)?\b/g, color: colors.number },
+      { regex: /--.*$/gm, color: colors.comment },
+      { regex: /\/\*[\s\S]*?\*\//g, color: colors.comment }
+    ]
+  };
+  
+  const languagePatterns = patterns[language];
+  if (!languagePatterns) return;
+  
+  // Apply each pattern
+  languagePatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.regex.exec(code)) !== null) {
+      try {
+        const startIndex = match.index;
+        const length = match[0].length;
+        const subRange = textRange.getRange(startIndex, length);
+        subRange.getTextStyle().setForegroundColor(pattern.color);
+      } catch (e) {
+        // Skip if range is invalid
+      }
+    }
+  });
+}
+
+/**
+ * Add image element with enhanced support
+ */
+function addImage(slide, element, yPosition) {
+  try {
+    let imageBlob = null;
+    let imageWidth = element.width || CONTENT_WIDTH;
+    let imageHeight = element.height || 300;
+    
+    if (element.src.startsWith('data:')) {
+      // Handle data URL
+      const base64Data = element.src.split(',')[1];
+      imageBlob = Utilities.newBlob(Utilities.base64Decode(base64Data));
+    } else if (element.src.startsWith('http')) {
+      // Try to fetch the image
+      try {
+        const response = UrlFetchApp.fetch(element.src);
+        imageBlob = response.getBlob();
+      } catch (e) {
+        // If fetch fails, create placeholder
+        const placeholder = slide.insertTextBox(
+          `[Image: ${element.alt || element.src}]`, 
+          MARGIN, 
+          yPosition, 
+          CONTENT_WIDTH, 
+          30
+        );
+        placeholder.getText().getTextStyle().setItalic(true);
+        return yPosition + 40;
+      }
+    } else if (element.src.startsWith('drive:')) {
+      // Handle Drive images
+      const fileId = element.src.slice(6);
+      const driveFile = DriveApp.getFileById(fileId);
+      imageBlob = driveFile.getBlob();
+    }
+    
+    if (imageBlob) {
+      const image = slide.insertImage(imageBlob);
+      
+      // Apply size constraints
+      const actualWidth = image.getWidth();
+      const actualHeight = image.getHeight();
+      const aspectRatio = actualWidth / actualHeight;
+      
+      // If custom dimensions provided
+      if (element.width || element.height) {
+        if (element.width && !element.height) {
+          imageHeight = imageWidth / aspectRatio;
+        } else if (!element.width && element.height) {
+          imageWidth = imageHeight * aspectRatio;
+        }
+      } else {
+        // Auto-size to fit
+        if (actualWidth > CONTENT_WIDTH) {
+          imageWidth = CONTENT_WIDTH;
+          imageHeight = imageWidth / aspectRatio;
+        }
+        if (imageHeight > 300) {
+          imageHeight = 300;
+          imageWidth = imageHeight * aspectRatio;
+        }
+      }
+      
+      image.setWidth(imageWidth);
+      image.setHeight(imageHeight);
+      
+      // Center the image
+      image.setLeft((SLIDE_WIDTH - imageWidth) / 2);
+      image.setTop(yPosition);
+      
+      return yPosition + imageHeight;
+    }
+  } catch (error) {
+    console.log('Error inserting image:', error);
+  }
+  
+  // Fallback to placeholder
+  const placeholder = slide.insertTextBox(
+    `[Image: ${element.alt || 'Error loading image'}]`, 
+    MARGIN, 
+    yPosition, 
+    CONTENT_WIDTH, 
+    30
+  );
+  placeholder.getText().getTextStyle().setItalic(true);
+  return yPosition + 40;
+}
+
+/**
+ * Add table element with enhanced styling
+ */
+function addTable(slide, element, yPosition, theme) {
+  if (!element.rows || element.rows.length === 0) {
+    return yPosition;
+  }
+  
+  const numRows = element.rows.length;
+  const numCols = element.rows[0].cells.length;
+  const tableHeight = numRows * 30;
+  const tableWidth = CONTENT_WIDTH;
+  
+  // Create table
+  const table = slide.insertTable(numRows, numCols, MARGIN, yPosition, tableWidth, tableHeight);
+  
+  // Note: Table borders are not directly settable in Google Slides API
+  // They are controlled by the presentation theme
+  
+  // Populate table with styling
+  element.rows.forEach((row, rowIdx) => {
+    row.cells.forEach((cellText, colIdx) => {
+      const cell = table.getCell(rowIdx, colIdx);
+      const textRange = cell.getText();
+      textRange.setText(cellText || '');
+      textRange.getTextStyle().setFontSize(12);
+      textRange.getTextStyle().setForegroundColor(theme.textColor);
+      
+      // Style cell borders (if supported)
+      try {
+        if (cell.getBorder) {
+          cell.getBorder().getLineFill().setSolidFill('#dddddd');
+          cell.getBorder().setWeight(1);
+        }
+      } catch (e) {
+        // Borders might not be supported in this version
+      }
+      
+      // Apply alignment
+      if (element.alignments && element.alignments[colIdx]) {
+        const alignment = element.alignments[colIdx];
+        switch (alignment) {
+          case 'center':
+            textRange.getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+            break;
+          case 'right':
+            textRange.getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.END);
+            break;
+          default:
+            textRange.getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
+        }
+      }
+      
+      // Style header row
+      if (row.isHeader) {
+        cell.getFill().setSolidFill(theme.tableHeaderBg);
+        textRange.getTextStyle().setBold(true);
+      } else if (rowIdx % 2 === 0) {
+        // Alternating row colors
+        cell.getFill().setSolidFill(theme.tableAltRowBg);
+      }
+    });
+  });
+  
+  return yPosition + tableHeight;
+}
+
+/**
+ * Add blockquote element with enhanced styling
+ */
+function addBlockquote(slide, element, yPosition, theme) {
+  const text = element.text || '';
+  const lines = text.split('\n');
+  const height = lines.length * 20 + 20;
+  
+  // Create background shape for quote
+  const quoteBackground = slide.insertShape(
+    SlidesApp.ShapeType.RECTANGLE,
+    MARGIN + 10,
+    yPosition,
+    CONTENT_WIDTH - 20,
+    height
+  );
+  quoteBackground.getFill().setSolidFill('#f9f9f9');
+  quoteBackground.getBorder().setTransparent();
+  
+  // Add quote text
+  const textBox = slide.insertTextBox('', MARGIN + 25, yPosition + 10, CONTENT_WIDTH - 35, height - 20);
+  const textRange = textBox.getText();
+  
+  // Support multi-line blockquotes
+  textRange.setText(text);
+  textRange.getTextStyle().setFontSize(DEFAULT_FONT_SIZE);
+  textRange.getTextStyle().setItalic(true);
+  textRange.getTextStyle().setForegroundColor(theme.blockquoteColor);
+  
+  // Add quote bar
+  const quoteLine = slide.insertLine(
+    MARGIN + 15,
+    yPosition + 5,
+    MARGIN + 15,
+    yPosition + height - 5
+  );
+  quoteLine.getLineStyle().setSolidFill(theme.linkColor);
+  quoteLine.getLineStyle().setWeight(3);
+  
+  return yPosition + height;
+}
+
+/**
+ * Add math expression (basic rendering)
+ */
+function addMathExpression(slide, element, yPosition, theme) {
+  const height = element.display ? 60 : 30;
+  
+  // Create a text box with monospace font for math
+  const text = element.text || '';
+  const mathBox = slide.insertTextBox(text, MARGIN, yPosition, CONTENT_WIDTH, height);
+  const textStyle = mathBox.getText().getTextStyle();
+  
+  textStyle.setFontFamily('Courier New');
+  textStyle.setFontSize(element.display ? 16 : 14);
+  textStyle.setForegroundColor(theme.textColor);
+  
+  if (element.display) {
+    mathBox.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+  }
+  
+  // Add light background
+  mathBox.getFill().setSolidFill('#f8f8f8');
+  mathBox.getBorder().getLineFill().setSolidFill('#e0e0e0');
+  
+  return yPosition + height;
+}
+
+/**
+ * Add horizontal rule
+ */
+function addHorizontalRule(slide, yPosition) {
+  const line = slide.insertLine(MARGIN, yPosition + 10, SLIDE_WIDTH - MARGIN, yPosition + 10);
+  line.getLineStyle().setSolidFill('#cccccc');
+  line.getLineStyle().setWeight(1);
+  
+  return yPosition + 20;
+}
+
+/**
+ * Add page number
+ */
+function addPageNumber(slide, pageNum, totalPages) {
+  const pageText = `${pageNum}`;
+  const textBox = slide.insertTextBox(pageText, SLIDE_WIDTH - 80, SLIDE_HEIGHT - 40, 60, 20);
+  textBox.getText().getTextStyle().setFontSize(12);
+  textBox.getText().getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.END);
+}
+
+/**
+ * Add header
+ */
+function addHeader(slide, headerText) {
+  const textBox = slide.insertTextBox(headerText, MARGIN, 10, CONTENT_WIDTH, 30);
+  textBox.getText().getTextStyle().setFontSize(10);
+  textBox.getText().getTextStyle().setForegroundColor('#666666');
+}
+
+/**
+ * Add footer
+ */
+function addFooter(slide, footerText) {
+  const textBox = slide.insertTextBox(footerText, MARGIN, SLIDE_HEIGHT - 40, CONTENT_WIDTH, 20);
+  textBox.getText().getTextStyle().setFontSize(10);
+  textBox.getText().getTextStyle().setForegroundColor('#666666');
+}
+
+/**
+ * Test function with enhanced examples
+ */
+function testParser() {
+  const testMarkdown = `---
+marp: true
+title: Enhanced gs-mark2slides Demo
+theme: dark
+paginate: true
+header: Enhanced Features Demo
+footer: gs-mark2slides - Advanced Markdown Support
+---
+
+# Enhanced gs-mark2slides Features
+
+This presentation demonstrates all the **new features** added to gs-mark2slides!
+
+---
+
+## Syntax Highlighting
+
+\`\`\`javascript
+// JavaScript example with syntax highlighting
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+const result = fibonacci(10);
+console.log("Fibonacci of 10:", result);
+\`\`\`
+
+---
+
+## Enhanced Markdown Support
+
+- **Bold text** and *italic text*
+- ~~Strikethrough text~~
+- \`inline code with background\`
+- [Clickable links](https://github.com)
+- Nested lists:
+  - First level
+    - Second level
+      - Third level
+
+---
+
+## Advanced Tables
+
+| Language | Popularity | Type |
+|:---------|:----------:|-----:|
+| JavaScript | ⭐⭐⭐⭐⭐ | Dynamic |
+| Python | ⭐⭐⭐⭐⭐ | Dynamic |
+| Java | ⭐⭐⭐⭐ | Static |
+| Go | ⭐⭐⭐ | Static |
+
+---
+
+## Images with Custom Sizing
+
+![Sample Image](https://via.placeholder.com/400x200 =400x200)
+
+Center-aligned by default!
+
+---
+
+## Multi-line Blockquotes
+
+> "The best way to predict the future is to invent it."
+> 
+> This is a multi-line blockquote that demonstrates
+> how longer quotes are formatted with proper styling
+> and indentation.
+
+---
+
+## Math Expressions
+
+Basic math support:
+
+$$E = mc^2$$
+
+Inline math: The area of a circle is $A = \\pi r^2$
+
+---
+
+## Code in Different Languages
+
+\`\`\`python
+# Python example
+def quick_sort(arr):
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quick_sort(left) + middle + quick_sort(right)
+\`\`\`
+
+---
+
+<!-- _backgroundColor: #2d2d2d -->
+<!-- _backgroundGradient: linear-gradient(to bottom, #2d2d2d, #1a1a1a) -->
+
+## Custom Backgrounds
+
+This slide has a custom background color and gradient!
+
+You can also use background images.
+
+---
+
+## Thank You!
+
+Created with **gs-mark2slides** - Enhanced Edition
+
+<!-- Speaker notes:
+This presentation showcases all the enhanced features
+including syntax highlighting, better markdown support,
+and improved styling options.
+-->`;
+
+  const result = createPresentation(testMarkdown);
+  console.log(result);
+}

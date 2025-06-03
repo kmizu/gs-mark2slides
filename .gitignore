@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.DS_Store
+credentials.json
+token.json
+*.js
+*.d.ts
+*.js.map
+!jest.config.js
+coverage/
+.vscode/
+.idea/
+test.md
+src/parser/test-parser.ts

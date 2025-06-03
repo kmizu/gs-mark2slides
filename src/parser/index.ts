@@ -1,0 +1,1 @@
+export { MarpParser, MarpParseResult } from './marp-parser';

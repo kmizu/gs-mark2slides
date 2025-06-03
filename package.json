@@ -1,0 +1,59 @@
+{
+  "name": "gs-mark2slides",
+  "version": "1.0.0",
+  "main": "dist/index-web.js",
+  "bin": {
+    "gs-mark2slides": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:gas": "webpack --config webpack.config.js && node scripts/fix-gas-globals.js",
+    "clean": "rm -rf dist dist-gas",
+    "dev": "tsx src/index-web.ts",
+    "web": "tsx src/index-web.ts",
+    "cli": "tsx src/index.ts",
+    "start": "node dist/index-web.js",
+    "start:cli": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gas:deploy": "npm run build:gas && clasp push",
+    "gas:open": "clasp open-script",
+    "gas:create": "clasp create --type webapp --title gs-mark2slides --rootDir dist-gas"
+  },
+  "keywords": [
+    "marp",
+    "google-slides",
+    "markdown",
+    "presentation",
+    "converter"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Convert Marp Markdown presentations to Google Slides",
+  "devDependencies": {
+    "@google/clasp": "^3.0.6-alpha",
+    "@types/express": "^5.0.2",
+    "@types/google-apps-script": "^1.0.97",
+    "@types/marked": "^5.0.2",
+    "@types/node": "^22.15.29",
+    "copy-webpack-plugin": "^13.0.0",
+    "html-webpack-plugin": "^5.6.3",
+    "ts-loader": "^9.5.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@marp-team/marp-core": "^4.1.0",
+    "@types/readline-sync": "^1.4.8",
+    "commander": "^14.0.0",
+    "express": "^5.1.0",
+    "googleapis": "^149.0.0",
+    "marked": "^15.0.12",
+    "open": "^10.1.2",
+    "readline-sync": "^1.4.10",
+    "yaml": "^2.8.0"
+  }
+}

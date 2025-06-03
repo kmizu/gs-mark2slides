@@ -1,0 +1,18 @@
+# Ignore source files and dependencies
+src/
+node_modules/
+*.ts
+*.js
+*.json
+!appsscript.json
+.git/
+.vscode/
+*.log
+*.md
+test/
+tests/
+
+# Include only the dist-gas directory contents
+!dist-gas/Code.gs
+!dist-gas/index.html
+!dist-gas/appsscript.json

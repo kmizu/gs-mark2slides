@@ -1,0 +1,1 @@
+export { GoogleSlidesAPI, CreatePresentationOptions, ConversionResult } from './slides-api';

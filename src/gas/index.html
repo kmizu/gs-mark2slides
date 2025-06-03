@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { 
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-light: #e0e7ff;
+      --secondary: #0ea5e9;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1e293b;
+      --gray-900: #0f172a;
+      --gray-800: #1e293b;
+      --gray-700: #334155;
+      --gray-600: #475569;
+      --gray-500: #64748b;
+      --gray-400: #94a3b8;
+      --gray-300: #cbd5e1;
+      --gray-200: #e2e8f0;
+      --gray-100: #f1f5f9;
+      --gray-50: #f8fafc;
+      --white: #ffffff;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      right: -50%;
+      bottom: -50%;
+      left: -50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: move 20s linear infinite;
+      z-index: -1;
+    }
+    
+    @keyframes move {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(50px, 50px); }
+    }
+    
+    .container {
+      display: flex;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .panel {
+      background: var(--white);
+      border-radius: 20px;
+      box-shadow: var(--shadow-xl);
+      padding: 32px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    
+    .editor-panel {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .preview-panel {
+      flex: 1;
+      min-width: 0;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    h1 {
+      color: var(--gray-900);
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      color: var(--gray-600);
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .editor-wrapper {
+      position: relative;
+      border-radius: 12px;
+      border: 2px solid var(--gray-200);
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    
+    .editor-wrapper:focus-within {
+      border-color: var(--primary);
+    }
+    
+    .editor-header {
+      background: var(--gray-50);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .editor-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+    
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: -9999px;
+    }
+    
+    .file-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--white);
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .file-button:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-400);
+    }
+    
+    #markdown-input {
+      width: 100%;
+      min-height: 400px;
+      padding: 16px;
+      border: none;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--gray-800);
+      resize: vertical;
+      background: var(--white);
+    }
+    
+    #markdown-input:focus {
+      outline: none;
+    }
+    
+    .button-container {
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: width 0.3s;
+    }
+    
+    .btn:hover::before {
+      width: 100%;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: white;
+      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 20px 0 rgba(99, 102, 241, 0.5);
+    }
+    
+    .btn-secondary {
+      background: var(--white);
+      color: var(--gray-700);
+      border: 2px solid var(--gray-300);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-400);
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .preview-content {
+      padding: 20px;
+    }
+    
+    .preview-slide {
+      background: var(--gray-50);
+      border: 2px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      position: relative;
+      min-height: 200px;
+      transition: all 0.3s;
+    }
+    
+    .preview-slide:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow);
+    }
+    
+    .slide-number {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    
+    .preview-slide h1,
+    .preview-slide h2,
+    .preview-slide h3,
+    .preview-slide h4,
+    .preview-slide h5,
+    .preview-slide h6 {
+      color: var(--gray-900);
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+    
+    .preview-slide h1 { font-size: 28px; }
+    .preview-slide h2 { font-size: 24px; }
+    .preview-slide h3 { font-size: 20px; }
+    .preview-slide h4 { font-size: 18px; }
+    .preview-slide h5 { font-size: 16px; }
+    .preview-slide h6 { font-size: 14px; }
+    
+    .preview-slide p {
+      margin-bottom: 12px;
+      line-height: 1.6;
+      color: var(--gray-700);
+    }
+    
+    .preview-slide ul, .preview-slide ol {
+      margin-bottom: 12px;
+      padding-left: 24px;
+      color: var(--gray-700);
+    }
+    
+    .preview-slide li {
+      margin-bottom: 4px;
+      line-height: 1.6;
+    }
+    
+    .preview-slide code {
+      background: var(--gray-100);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+      color: var(--danger);
+    }
+    
+    .preview-slide pre {
+      background: var(--gray-900);
+      color: var(--gray-100);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+    
+    .preview-slide pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    
+    .preview-slide blockquote {
+      border-left: 4px solid var(--primary);
+      padding-left: 16px;
+      margin: 16px 0;
+      color: var(--gray-600);
+      font-style: italic;
+      background: var(--primary-light);
+      padding: 16px;
+      border-radius: 8px;
+    }
+    
+    .preview-slide table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .preview-slide th {
+      background: var(--gray-800);
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .preview-slide td {
+      padding: 12px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .preview-slide tr:nth-child(even) {
+      background: var(--gray-50);
+    }
+    
+    .preview-slide hr {
+      border: none;
+      height: 2px;
+      background: var(--gray-300);
+      margin: 20px 0;
+      border-radius: 1px;
+    }
+    
+    .speaker-notes {
+      background: var(--warning);
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 2px solid #f59e0b;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #92400e;
+    }
+    
+    .speaker-notes::before {
+      content: '📝 Speaker Notes: ';
+      font-weight: 600;
+    }
+    
+    .status-message {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      animation: slideIn 0.3s ease-out;
+      z-index: 1000;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .status-success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .status-error {
+      background: var(--danger);
+      color: white;
+    }
+    
+    .status-info {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .drag-over {
+      background: var(--primary-light);
+      border-color: var(--primary);
+    }
+    
+    .drop-zone {
+      border: 3px dashed var(--gray-300);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      color: var(--gray-500);
+      margin-bottom: 24px;
+      transition: all 0.3s;
+      background: var(--gray-50);
+    }
+    
+    .drop-zone.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    
+    .drop-zone-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .feature-card {
+      background: var(--gray-50);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      transition: all 0.3s;
+    }
+    
+    .feature-card:hover {
+      border-color: var(--primary-light);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+    
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    
+    .feature-title {
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 4px;
+    }
+    
+    .feature-desc {
+      font-size: 14px;
+      color: var(--gray-600);
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 1024px) {
+      .container {
+        flex-direction: column;
+      }
+      
+      .preview-panel {
+        max-height: 600px;
+      }
+    }
+    .name-input-container {
+      margin-top: 24px;
+      margin-bottom: 16px;
+    }
+    
+    .input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-700);
+      margin-bottom: 8px;
+    }
+    
+    .name-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--gray-200);
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--gray-800);
+      background: var(--white);
+      transition: all 0.2s;
+    }
+    
+    .name-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .name-input::placeholder {
+      color: var(--gray-400);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel editor-panel">
+      <h1>gs-mark2slides</h1>
+      <p class="subtitle">Convert Marp Markdown to Google Slides</p>
+      
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">✨</div>
+          <div class="feature-title">Rich Formatting</div>
+          <div class="feature-desc">Support for headings, lists, tables, and more</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <div class="feature-title">Themes</div>
+          <div class="feature-desc">Multiple themes with custom styling</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💻</div>
+          <div class="feature-title">Code Highlighting</div>
+          <div class="feature-desc">Syntax highlighting for multiple languages</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <div class="feature-title">Speaker Notes</div>
+          <div class="feature-desc">Add presenter notes to your slides</div>
+        </div>
+      </div>
+      
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-icon">📄</div>
+        <p>Drag & drop your Marp file here or click to upload</p>
+      </div>
+      
+      <div class="editor-wrapper">
+        <div class="editor-header">
+          <span class="editor-title">Marp Markdown Editor</span>
+          <div class="file-input-wrapper">
+            <input type="file" id="file-input" accept=".md,.markdown">
+            <label for="file-input" class="file-button">
+              📁 Choose File
+            </label>
+          </div>
+        </div>
+        <textarea id="markdown-input" placeholder="Enter your Marp markdown here...
+
+Example:
+---
+marp: true
+theme: default
+paginate: true
+---
+
+# Your Presentation Title
+
+First slide content
+
+---
+
+## Second Slide
+
+- Bullet point 1
+- Bullet point 2
+
+---"></textarea>
+      </div>
+      
+      <div class="name-input-container">
+        <label for="presentation-name" class="input-label">Presentation Name:</label>
+        <input type="text" id="presentation-name" class="name-input" placeholder="My Presentation" value="Converted from Marp">
+      </div>
+      
+      <div class="button-container">
+        <button id="convert-button" class="btn btn-primary" onclick="convertToSlides()">
+          🚀 Convert to Google Slides
+        </button>
+        <button id="preview-button" class="btn btn-secondary" onclick="updatePreview()">
+          👁️ Update Preview
+        </button>
+        <button id="clear-button" class="btn btn-secondary" onclick="clearInput()">
+          🗑️ Clear
+        </button>
+      </div>
+    </div>
+    
+    <div class="panel preview-panel">
+      <h2>Preview</h2>
+      <div id="preview-content" class="preview-content">
+        <p style="text-align: center; color: #94a3b8; padding: 40px;">
+          Enter some Marp markdown to see the preview...
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // File handling
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const markdownInput = document.getElementById('markdown-input');
+    
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    // Drag and drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    });
+    
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        handleFile(file);
+      }
+    }
+    
+    function handleFile(file) {
+      if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          markdownInput.value = e.target.result;
+          updatePreview();
+          showStatus('File loaded successfully!', 'success');
+        };
+        reader.readAsText(file);
+      } else {
+        showStatus('Please select a Markdown file', 'error');
+      }
+    }
+    
+    // Auto-update preview on input
+    let updateTimeout;
+    markdownInput.addEventListener('input', () => {
+      clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(updatePreview, 500);
+    });
+    
+    function updatePreview() {
+      const markdown = markdownInput.value;
+      if (!markdown.trim()) {
+        document.getElementById('preview-content').innerHTML = 
+          '<p style="text-align: center; color: #94a3b8; padding: 40px;">Enter some Marp markdown to see the preview...</p>';
+        return;
+      }
+      
+      // Simple preview rendering (not full Marp parsing)
+      const slides = parseMarkdownToSlides(markdown);
+      const previewHtml = slides.map((slide, index) => 
+        renderSlidePreview(slide, index + 1)
+      ).join('');
+      
+      document.getElementById('preview-content').innerHTML = previewHtml;
+    }
+    
+    function parseMarkdownToSlides(markdown) {
+      const slides = [];
+      const parts = markdown.split(/^---$/m);
+      
+      // Skip frontmatter if present
+      let startIndex = 0;
+      if (parts[0].trim() === '' && parts[1] && parts[1].includes('marp:')) {
+        startIndex = 2;
+      }
+      
+      for (let i = startIndex; i < parts.length; i++) {
+        const content = parts[i].trim();
+        if (content) {
+          slides.push(parseSlideContent(content));
+        }
+      }
+      
+      return slides;
+    }
+    
+    function parseSlideContent(content) {
+      const slide = {
+        content: content,
+        notes: ''
+      };
+      
+      // Extract speaker notes
+      const notesMatch = content.match(/<!--\s*(.*?)\s*-->/s);
+      if (notesMatch) {
+        slide.notes = notesMatch[1].trim();
+        slide.content = content.replace(notesMatch[0], '').trim();
+      }
+      
+      return slide;
+    }
+    
+    function renderSlidePreview(slide, number) {
+      let html = `<div class="preview-slide">
+        <div class="slide-number">Slide ${number}</div>`;
+      
+      // Simple markdown to HTML conversion
+      let content = slide.content;
+      
+      // Headers
+      content = content.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+      content = content.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      content = content.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+      
+      // Lists
+      content = content.replace(/^\* (.+)$/gim, '<li>$1</li>');
+      content = content.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+      
+      // Code blocks
+      content = content.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      
+      // Inline code
+      content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Bold and italic
+      content = content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      content = content.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      
+      // Paragraphs
+      content = content.split('\n\n').map(p => 
+        p.trim() && !p.startsWith('<') ? `<p>${p}</p>` : p
+      ).join('\n');
+      
+      html += content;
+      
+      if (slide.notes) {
+        html += `<div class="speaker-notes">${slide.notes}</div>`;
+      }
+      
+      html += '</div>';
+      return html;
+    }
+    
+    function convertToSlides() {
+      const markdown = markdownInput.value;
+      if (!markdown.trim()) {
+        showStatus('Please enter some Marp markdown first', 'error');
+        return;
+      }
+      
+      const presentationName = document.getElementById('presentation-name').value.trim() || 'Converted from Marp';
+      
+      const button = document.getElementById('convert-button');
+      button.disabled = true;
+      button.innerHTML = '<span class="loading"></span> Converting...';
+      
+      google.script.run
+        .withSuccessHandler(handleConversionSuccess)
+        .withFailureHandler(handleConversionError)
+        .convertMarpToSlides(markdown, presentationName);
+    }
+    
+    function handleConversionSuccess(result) {
+      const button = document.getElementById('convert-button');
+      button.disabled = false;
+      button.innerHTML = '🚀 Convert to Google Slides';
+      
+      if (result.success) {
+        showStatus(`Success! Created presentation with ${result.slideCount} slides`, 'success');
+        
+        // Open the presentation in a new tab
+        if (result.url) {
+          window.open(result.url, '_blank');
+        }
+      } else {
+        showStatus(result.error || 'Conversion failed', 'error');
+      }
+    }
+    
+    function handleConversionError(error) {
+      const button = document.getElementById('convert-button');
+      button.disabled = false;
+      button.innerHTML = '🚀 Convert to Google Slides';
+      
+      showStatus('Error: ' + error.message, 'error');
+    }
+    
+    function clearInput() {
+      markdownInput.value = '';
+      updatePreview();
+      showStatus('Input cleared', 'info');
+    }
+    
+    function showStatus(message, type) {
+      const existing = document.querySelector('.status-message');
+      if (existing) {
+        existing.remove();
+      }
+      
+      const status = document.createElement('div');
+      status.className = `status-message status-${type}`;
+      status.textContent = message;
+      document.body.appendChild(status);
+      
+      setTimeout(() => {
+        status.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => status.remove(), 300);
+      }, 3000);
+    }
+    
+    // Initialize with example
+    if (!markdownInput.value) {
+      markdownInput.value = `---
+marp: true
+theme: default
+paginate: true
+---
+
+# Welcome to gs-mark2slides
+
+Convert your Marp presentations to Google Slides with ease!
+
+---
+
+## Features
+
+- 📝 Full Marp syntax support
+- 🎨 Multiple themes
+- 💻 Syntax highlighting
+- 📊 Tables and lists
+- 🖼️ Images and media
+- 💬 Speaker notes
+
+---
+
+## Try it out!
+
+Edit this markdown and click **Convert to Google Slides** to see the magic happen!`;
+      updatePreview();
+    }
+  </script>
+</body>
+</html>
