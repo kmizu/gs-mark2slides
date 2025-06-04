@@ -831,9 +831,28 @@ First slide content
       button.disabled = true;
       button.innerHTML = '<span class="loading"></span> Converting...';
       
+      // Add timeout to prevent indefinite waiting
+      const timeoutId = setTimeout(() => {
+        button.disabled = false;
+        button.innerHTML = '🚀 Convert to Google Slides';
+        showStatus('Conversion timed out. Please try again.', 'error');
+      }, 30000); // 30 second timeout
+      
+      const clearTimeoutAndHandle = (handler) => {
+        return (result) => {
+          clearTimeout(timeoutId);
+          handler(result);
+        };
+      };
+      
+      console.log('Calling convertMarpToSlides with:', { 
+        markdownLength: markdown.length, 
+        presentationName 
+      });
+      
       google.script.run
-        .withSuccessHandler(handleConversionSuccess)
-        .withFailureHandler(handleConversionError)
+        .withSuccessHandler(clearTimeoutAndHandle(handleConversionSuccess))
+        .withFailureHandler(clearTimeoutAndHandle(handleConversionError))
         .convertMarpToSlides(markdown, presentationName);
     }
     

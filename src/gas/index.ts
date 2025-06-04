@@ -5,15 +5,20 @@ import { doGet } from './webapp';
 import { convertMarpToSlides } from './converter';
 import { openSidebar } from './ui';
 
-// Export functions to global scope for GAS
-(function(global: any) {
+// Export functions for GAS
+export { doGet, convertMarpToSlides, openSidebar };
+
+// Test function
+export function testFunction() {
+  console.log("Test function called");
+  return { success: true, message: "Test successful" };
+}
+
+// Assign to global scope for GAS
+declare const global: any;
+if (typeof global !== 'undefined') {
   global.doGet = doGet;
   global.convertMarpToSlides = convertMarpToSlides;
   global.openSidebar = openSidebar;
-  
-  // Test function
-  global.testFunction = function() {
-    console.log("Test function called");
-    return { success: true, message: "Test successful" };
-  };
-})(this);
+  global.testFunction = testFunction;
+}

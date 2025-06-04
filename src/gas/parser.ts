@@ -49,6 +49,15 @@ export function parseMarpMarkdown(markdown: string): ParsedPresentation {
     slides: []
   };
   
+  // Handle empty input
+  if (!markdown || markdown.trim().length === 0) {
+    result.slides.push({ metadata: {}, content: [], notes: '' });
+    return result;
+  }
+  
+  // Normalize line endings
+  markdown = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
   const lines = markdown.split('\n');
   let i = 0;
   
@@ -61,7 +70,12 @@ export function parseMarpMarkdown(markdown: string): ParsedPresentation {
       i++;
     }
     if (i < lines.length) {
-      result.metadata = parseFrontmatter(frontmatterLines.join('\n'));
+      try {
+        result.metadata = parseFrontmatter(frontmatterLines.join('\n'));
+      } catch (error) {
+        console.error('Error parsing frontmatter:', error);
+        // Continue with empty metadata
+      }
       i++; // Skip closing ---
     }
   }
@@ -177,22 +191,67 @@ export function parseMarpMarkdown(markdown: string): ParsedPresentation {
 }
 
 /**
- * Parse frontmatter YAML (simplified)
+ * Parse frontmatter YAML (improved)
  */
 function parseFrontmatter(yaml: string): SlideMetadata {
   const metadata: SlideMetadata = {};
   const lines = yaml.split('\n');
   
-  lines.forEach(line => {
+  let currentKey: string | null = null;
+  let currentValue: string[] = [];
+  
+  for (const line of lines) {
+    // Skip empty lines
+    if (!line.trim()) continue;
+    
+    // Check if it's a new key-value pair
     const colonIndex = line.indexOf(':');
-    if (colonIndex > 0) {
-      const key = line.slice(0, colonIndex).trim();
-      const value = line.slice(colonIndex + 1).trim();
-      metadata[key] = value.replace(/^["']|["']$/g, '');
+    if (colonIndex > 0 && !line.slice(0, colonIndex).includes('"') && !line.slice(0, colonIndex).includes("'")) {
+      // Save previous key-value if exists
+      if (currentKey) {
+        const value = currentValue.join('\n').trim();
+        metadata[currentKey] = parseYamlValue(value);
+      }
+      
+      // Start new key-value
+      currentKey = line.slice(0, colonIndex).trim();
+      const initialValue = line.slice(colonIndex + 1).trim();
+      currentValue = initialValue ? [initialValue] : [];
+    } else if (currentKey && (line.startsWith('  ') || line.startsWith('\t'))) {
+      // Multi-line value
+      currentValue.push(line.trim());
     }
-  });
+  }
+  
+  // Don't forget the last key-value
+  if (currentKey) {
+    const value = currentValue.join('\n').trim();
+    metadata[currentKey] = parseYamlValue(value);
+  }
   
   return metadata;
+}
+
+/**
+ * Parse YAML value (handle booleans, numbers, strings)
+ */
+function parseYamlValue(value: string): any {
+  // Remove quotes if present
+  if ((value.startsWith('"') && value.endsWith('"')) || 
+      (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  
+  // Boolean values
+  if (value.toLowerCase() === 'true' || value.toLowerCase() === 'yes') return true;
+  if (value.toLowerCase() === 'false' || value.toLowerCase() === 'no') return false;
+  
+  // Numeric values
+  if (/^-?\d+$/.test(value)) return parseInt(value, 10);
+  if (/^-?\d+\.\d+$/.test(value)) return parseFloat(value);
+  
+  // Return as string
+  return value;
 }
 
 /**
@@ -265,30 +324,61 @@ function parseSlideContent(markdown: string): SlideContent[] {
     }
     
     // List (unordered or ordered)
-    if (/^[-*+]\s/.test(trimmedLine) || /^\d+\.\s/.test(trimmedLine)) {
+    if (/^(\s*)[-*+]\s/.test(line) || /^(\s*)\d+\.\s/.test(line)) {
       const listItems: any[] = [];
+      const initialIndent = line.search(/\S/);
       const isOrdered = /^\d+\./.test(trimmedLine);
+      let blankLineCount = 0;
       
-      while (i < lines.length && (
-        /^[-*+]\s/.test(lines[i].trim()) || 
-        /^\d+\.\s/.test(lines[i].trim()) ||
-        /^\s{2,}/.test(lines[i]) // Nested items
-      )) {
-        const itemLine = lines[i];
-        const indent = itemLine.search(/\S/);
-        const text = itemLine.replace(/^(\s*)[-*+]\s/, '').replace(/^(\s*)\d+\.\s/, '');
+      while (i < lines.length && blankLineCount <= 1) {
+        const currentLine = lines[i];
+        const currentTrimmed = currentLine.trim();
         
-        listItems.push({
-          text: text,
-          indent: Math.floor(indent / 2)
-        });
-        i++;
+        // Count consecutive blank lines
+        if (!currentTrimmed) {
+          blankLineCount++;
+          i++;
+          continue;
+        }
+        
+        // Reset blank line count when we find content
+        blankLineCount = 0;
+        
+        // Check if it's a list item (ordered or unordered)
+        const unorderedMatch = currentLine.match(/^(\s*)[-*+]\s+(.*)$/);
+        const orderedMatch = currentLine.match(/^(\s*)(\d+)\.\s+(.*)$/);
+        
+        if (unorderedMatch || orderedMatch) {
+          const indent = unorderedMatch ? unorderedMatch[1].length : orderedMatch![1].length;
+          const text = unorderedMatch ? unorderedMatch[2] : orderedMatch![3];
+          
+          // Calculate relative indent level
+          const indentLevel = Math.floor((indent - initialIndent) / 2);
+          
+          listItems.push({
+            text: text.trim(),
+            indent: Math.max(0, indentLevel)
+          });
+          i++;
+        } else if (currentLine.startsWith(' ') || currentLine.startsWith('\t')) {
+          // Continuation of previous list item
+          if (listItems.length > 0) {
+            const lastItem = listItems[listItems.length - 1];
+            lastItem.text += '\n' + currentTrimmed;
+          }
+          i++;
+        } else {
+          // Not a list item, stop processing
+          break;
+        }
       }
       
-      elements.push({
-        type: isOrdered ? 'orderedList' : 'list',
-        items: listItems
-      });
+      if (listItems.length > 0) {
+        elements.push({
+          type: isOrdered ? 'orderedList' : 'list',
+          items: listItems
+        });
+      }
       continue;
     }
     
@@ -302,16 +392,32 @@ function parseSlideContent(markdown: string): SlideContent[] {
       }
     }
     
-    // Image
-    const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)(?:\s*=(\d+)x(\d+))?/);
+    // Image (with support for various formats and attributes)
+    const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)(?:\s*(?:=(\d+)x(\d+)|{([^}]+)}))?/);
     if (imageMatch) {
-      elements.push({
+      const element: SlideContent = {
         type: 'image',
-        alt: imageMatch[1],
-        src: imageMatch[2],
-        width: imageMatch[3] ? parseInt(imageMatch[3]) : undefined,
-        height: imageMatch[4] ? parseInt(imageMatch[4]) : undefined
-      });
+        alt: imageMatch[1] || '',
+        src: imageMatch[2].trim()
+      };
+      
+      // Handle size specification (=WIDTHxHEIGHT)
+      if (imageMatch[3] && imageMatch[4]) {
+        element.width = parseInt(imageMatch[3]);
+        element.height = parseInt(imageMatch[4]);
+      }
+      
+      // Handle attribute specification ({key=value ...})
+      if (imageMatch[5]) {
+        const attrs = imageMatch[5].split(/\s+/);
+        attrs.forEach(attr => {
+          const [key, value] = attr.split('=');
+          if (key === 'width' && value) element.width = parseInt(value);
+          if (key === 'height' && value) element.height = parseInt(value);
+        });
+      }
+      
+      elements.push(element);
       i++;
       continue;
     }
@@ -366,16 +472,31 @@ function parseTable(lines: string[], startIndex: number): { table: SlideContent 
   const rows: any[] = [];
   let alignments: string[] = [];
   
+  // Check if this is really a table (must have separator row)
+  if (i + 1 >= lines.length || !lines[i + 1].includes('|')) {
+    return { table: null, endIndex: startIndex + 1 };
+  }
+  
+  // Validate separator row format
+  const separatorRow = lines[i + 1];
+  if (!/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(separatorRow)) {
+    return { table: null, endIndex: startIndex + 1 };
+  }
+  
   // Parse header row
   if (i < lines.length && lines[i].includes('|')) {
-    const headerCells = lines[i].split('|').filter(cell => cell.trim());
-    rows.push({ cells: headerCells.map(cell => cell.trim()), isHeader: true });
+    const headerLine = lines[i];
+    // Remove leading and trailing pipes if present
+    const cleanedHeader = headerLine.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+    const headerCells = cleanedHeader.split('|').map(cell => cell.trim());
+    rows.push({ cells: headerCells, isHeader: true });
     i++;
   }
   
   // Parse separator row (defines alignments)
   if (i < lines.length && lines[i].includes('|')) {
-    const separatorCells = lines[i].split('|').filter(cell => cell.trim());
+    const cleanedSeparator = lines[i].replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+    const separatorCells = cleanedSeparator.split('|');
     alignments = separatorCells.map(cell => {
       const trimmed = cell.trim();
       if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
@@ -387,8 +508,25 @@ function parseTable(lines: string[], startIndex: number): { table: SlideContent 
   
   // Parse data rows
   while (i < lines.length && lines[i].includes('|')) {
-    const cells = lines[i].split('|').filter(cell => cell.trim());
-    rows.push({ cells: cells.map(cell => cell.trim()), isHeader: false });
+    const dataLine = lines[i];
+    // Skip if line is empty or just contains pipes
+    if (!/[^|\s]/.test(dataLine)) {
+      i++;
+      continue;
+    }
+    
+    const cleanedData = dataLine.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+    const cells = cleanedData.split('|').map(cell => cell.trim());
+    
+    // Ensure all rows have the same number of columns
+    if (rows.length > 0 && cells.length !== rows[0].cells.length) {
+      // Pad or truncate to match header row
+      const targetLength = rows[0].cells.length;
+      while (cells.length < targetLength) cells.push('');
+      if (cells.length > targetLength) cells.length = targetLength;
+    }
+    
+    rows.push({ cells: cells, isHeader: false });
     i++;
   }
   
